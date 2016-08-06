@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<title>Wright 'ight Update</title>
+    	<link rel="stylesheet" href="http://yui.yahooapis.com/pure/0.6.0/pure-min.css">
+	<link rel="stylesheet" href="css/form_style.css">
+</head>
+<body>
+	<div>
+		<br><br>
+		<div class="col-md-6 col-md-offset-3">
+			<form method="post">
+				<div class="form-group" id="updateWC">
+					<label for="wc_book">Date</label>
+					<input type="text" class="form-control" id="wc_book" name="wc_book" value="{{previous.book}}">
+				</div>
+				<div class="form-group">
+					<label for="wc_date">Date</label>
+					<input type="date" class="form-control" id="wc_date" name="wc_date" value="{{today}}">
+				</div>
+				<div class="form-group">
+					<label for="wc_count">Total Word Count</label>
+					<input type="number" class="form-control" id="wc_count" name="wc_count" value="{{previous.count}}">
+				</div>
+				<div class="form-group">
+					<label for="wc_hours">Hours</label>
+					<input type="number" class="form-control" id="wc_hours" name="wc_hours" placeholder="0">
+				</div>
+				<div class="form-group">
+					<label class="radio-inline">
+					<input type="radio" name="wc_role" value="wc_writer">Writing
+					</label>
+					<label class="radio-inline">
+					<input type="radio" name="wc_role" value="wc_editor">Editing
+					</label>
+					<label class="radio-inline">
+					<input type="radio" name="wc_role" value="wc_planner">Planning
+					</label>
+				</div>
+				<div class="form-group">
+					<button class="btn btn-default" type="submit">Submit</button>
+				</div>
+			</form>
+		</div>
+	</div>
+</body>
+</html>

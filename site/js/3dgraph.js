@@ -1,14 +1,14 @@
 function makeGraph(json_data) {
-  console.log(json_data);
   // Set our canvas size
   var width = 900
   var height = 270
   var margins = width * 0.06;
 
   // Get our Data
-  // random data
+  var value_item = "wc_delta";
   var data = [];
   var data_max = 4;
+  var previous_words = 0;
   for (var i=0; i<364; i++) {
     // get this cells date
     var d = new Date();
@@ -16,19 +16,28 @@ function makeGraph(json_data) {
     // + i offsets our cell
     // + (6 - d.getDay) makes us line up on Sunday
     d.setDate((d.getDate() - 363) + i + (6 - d.getDay()));
-    var cell_data = {
-      wc_date: d;
-    };
+    var cell_data = {};
     // See if there is a json_data entry for this date
     for (var j=0; j<json_data.length; j++) {
       if (json_data[j].wc_date == d.toISOString().substring(0,10)) {
-        // add it to the collection
-        cell_data.val = 
-        // remove it from our json_data
+        // add it to the collection and remove it from our json_data
+        cell_data = json_data.splice(j,1)[0];
+        cell_data.wc_date = d;
+        cell_data.wc_delta = cell_data.wc_count - previous_words;
+        previous_words = cell_data.wc_count;
+        cell_data.getValue = function () {
+          return this[value_item];
+        };
+
+        data_max = (Math.abs(cell_data.getValue()) > data_max) ? Math.abs(cell_data.getValue()) : data_max;
         break;
       }
     }
-    data_max = (data[i] > data_max) ? data[i] : data_max;
+    if (cell_data.wc_date === undefined) {
+      cell_data.wc_date = d;
+      cell_data.getValue = function() { return 0;};
+    }
+    data.push(cell_data);
   }
 
   // Make the Model and add our objects
@@ -40,21 +49,25 @@ function makeGraph(json_data) {
   var box_highest = box_size * 3.6;
   var low_hue = 0.18;
   var high_hue = 0.33;
+  var neg_low_hue = 0.06;
+  var neg_high_hue = 0;
   var low_sat = 0.66;
   var high_sat = 0.54;
   var low_lum = 0.72;
   var high_lum = 0.24;
   for (var i=0; i<data.length; i++) {
     var mat = new seen.Material();
-    mat.specularExponent = 12;
+    mat.specularExponent = 9;
     mat.shader = seen.Flat
-    if (data[i] != 0) {
-      mat.color = seen.Colors.hsl(slide(data[i]/data_max,low_hue,high_hue),slide(data[i]/data_max,low_sat,high_sat),slide(data[i]/data_max,low_lum,high_lum));
+    if (data[i].getValue() > 0) {
+      mat.color = seen.Colors.hsl(slide(data[i].getValue()/data_max,low_hue,high_hue),slide(data[i].getValue()/data_max,low_sat,high_sat),slide(data[i].getValue()/data_max,low_lum,high_lum));
+    } else if (data[i].getValue() < 0) {
+      mat.color = seen.Colors.hsl(slide(Math.abs(data[i].getValue())/data_max,neg_low_hue,neg_high_hue),slide(Math.abs(data[i].getValue())/data_max,low_sat,high_sat),slide(Math.abs(data[i].getValue())/data_max,low_lum,high_lum));
     } else {
-      mat.color = seen.Colors.grey();
+      mat.color = seen.Colors.rgb(238,238,238);
     }
     var box = seen.Shapes.unitcube()
-        .scale(box_size * box_pad, box_size * box_pad, (box_highest * (data[i] / data_max)) + 1)
+        .scale(box_size * box_pad, box_size * box_pad, (box_highest * (data[i].getValue() / data_max)) + 1)
         .translate(Math.floor(i/7) * (box_size), (i%7) * (-box_size), 0)
         .fill(mat);
     box.base_color = mat;
@@ -73,7 +86,7 @@ function makeGraph(json_data) {
   }
 
   // Create the scene, and position the model
-  model.translate((-1) * (box_size + box_pad) * (data.length / (2 * 7)), (box_size + box_pad) * (7/2), data_max / 2);
+  model.translate((-1) * (box_size + box_pad) * (data.length / (2 * 7)), (box_size + box_pad) * (7/2), 0);
 
   var cam = new seen.Camera({
     projection: seen.Projections.ortho()

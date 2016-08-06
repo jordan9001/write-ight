@@ -19,17 +19,12 @@ app.use(bodyParser.urlencoded({ extended: true }));
 
 app.use(express.static('site'));
 
-/*app.get('/', function(req, res) {
-  res.redirect('3dgraph.html');
-});*/
-
-
 app.get('/data', function(req,res) {
   res.setHeader('Content-Type', 'application/json');
   client.keys('*', function(err, reply) {
     if (reply !== null) {
       async.map(reply, getitem, function(err, results) {
-        var data = results.filter(filterResults);
+        var data = results.filter(filterResults).map(mapResults);
         res.send(data);
       });
     } else {
@@ -57,6 +52,12 @@ function filterResults(value) {
     return false;
   }
   return true;
+}
+
+function mapResults(value) {
+  value.wc_count = +(value.wc_count);
+  value.wc_hours = +(value.wc_hours);
+  return value;
 }
 
 app.get('/update', function(req, res) {

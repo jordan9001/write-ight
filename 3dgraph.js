@@ -75,13 +75,13 @@ model.bake();
 var context = seen.Context('seen-canvas', scene).render();
 
 // Set up interaction
-/*var dragger = new seen.Drag('seen-canvas', {inertia : true});
+var dragger = new seen.Drag('seen-canvas', {inertia : true});
 dragger.on('drag.rotate', function(e) {
   var ref = seen.Quaternion;
   var xform = ref.xyToTransform.apply(ref, e.offsetRelative);
   model.transform(xform);
   return context.render();
-});*/
+});
 
 var pos = [
   {x:0, y:0, z:0},
@@ -116,3 +116,34 @@ document.getElementById("rotate").addEventListener("click", function() {
   t_jump = -1;
   animator.start();
 });
+
+// Mouseover stuff
+var can = document.getElementById('seen-canvas');
+can.addEventListener('mousemove', function(evt) {
+  var rect = can.getBoundingClientRect();
+  var mp = {
+    x: evt.clientX - rect.left,
+    y: evt.clientY - rect.top
+  };
+  for (var i=0; i<model.children.length; i++) {
+    var min = {};
+    var max = {};
+    for (var j=0; j<model.children[i].surfaces.length; j++) {
+      var proj = scene._renderModelCache[model.children[i].surfaces[j].id].projected.bounds;
+      min.x = (min.x == undefined || min.x > proj.min.x) ? proj.min.x : min.x;
+      min.y = (min.y == undefined || min.y > proj.min.y) ? proj.min.y : min.y;
+      max.x = (max.x == undefined || max.x < proj.max.x) ? proj.max.x : max.x;
+      max.y = (max.y == undefined || max.y < proj.max.y) ? proj.max.y : max.y;
+    }
+    if (i == 0) {
+      console.log("x:"+ min.x +"-"+ max.x +" y:"+ min.y +"-"+ max.y);
+      console.log("mx:"+ mp.x + " my:"+ mp.y);
+    }
+    if (mp.x < max.x && mp.y < max.y && mp.x > min.x && mp.y > min.y) {
+      for (var j=0; j<model.children[i].surfaces.length; j++) {
+        model.children[i].surfaces[j].fill("#FF0000");
+      }
+    }
+  }
+  context.render();
+}, false);

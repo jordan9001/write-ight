@@ -1,47 +1,72 @@
-function makeGraph(json_data) {
-  // Set our canvas size
-  var width = 900
-  var height = 270
-  var margins = width * 0.06;
 
-  // Get our Data
-  var value_item = "wc_delta";
-  var data = [];
-  var data_max = 4;
-  var previous_words = 0;
-  for (var i=0; i<364; i++) {
-    // get this cells date
-    var d = new Date();
-    // getDate - 363 goes back to a year ago
-    // + i offsets our cell
-    // + (6 - d.getDay) makes us line up on Sunday
-    d.setDate((d.getDate() - 363) + i + (6 - d.getDay()));
-    var cell_data = {};
-    // See if there is a json_data entry for this date
-    for (var j=0; j<json_data.length; j++) {
-      if (json_data[j].wc_date == d.toISOString().substring(0,10)) {
-        // add it to the collection and remove it from our json_data
-        cell_data = json_data.splice(j,1)[0];
-        cell_data.wc_date = d;
-        cell_data.wc_delta = cell_data.wc_count - previous_words;
-        previous_words = cell_data.wc_count;
-        cell_data.getValue = function () {
-          return this[value_item];
-        };
+var lineGraph = function() {
+}
 
-        data_max = (Math.abs(cell_data.getValue()) > data_max) ? Math.abs(cell_data.getValue()) : data_max;
-        break;
-      }
-    }
-    if (cell_data.wc_date === undefined) {
-      cell_data.wc_date = d;
-      cell_data.getValue = function() { return 0;};
-    }
-    data.push(cell_data);
+lineGraph.prototype.init = function (json_data, date_value, y_values) {
+  var svg = d3.select("svg"),
+      margin = {top: 20, right: 80, bottom: 30, left: 50},
+      width = svg.attr("width") - margin.left - margin.right,
+      height = svg.attr("height") - margin.top - margin.bottom,
+      g = svg.append("g").attr("transform", "translate(" + margin.left + "," + margin.top + ")");
+
+  var x = d3.scaleTime().range([0, width]),
+      z = d3.scaleOrdinal(d3.schemeCategory10);
+
+  var max_date = json_data.data_max[date_value];
+  var min_date = new Date(max_date.getTime());
+  min_date.setDate(max_date.getDate() - 364);
+
+  x.domain([min_date, max_date]);
+
+  g.append("g")
+      .attr("class", "axis axis--x")
+      .attr("transform", "translate(0," + height + ")")
+      .call(d3.axisBottom(x));
+
+  for (var val=0; val<y_values.length; val++) {
+    var y = d3.scaleLinear().range([height, 0]);
+    y.domain([-1, json_data.data_max[y_values[val]]]);
+    
+    var line = d3.line()
+        .curve(d3.curveBasis)
+        .x(function(d) { return x(d[date_value]); })
+        .y(function(d) { return y(d[y_values[val]]); });
+
+    svg.append("path")
+        .datum(json_data.data)
+        .attr("class", "line")
+        .attr("d", function(d) { return line(json_data.data); })
+        .style("stroke", function(d) { return z(val); });
   }
+}
+
+
+var gitGraph = function() {
+  this.model = seen.Models["default"]();
+  this.scene = undefined;
+  this.context = undefined;
+  this.animator = undefined;
+  this.mode = 0;
+  this.t_jump = -1;
+
+  this.select_callout = undefined;
+}
+
+gitGraph.prototype.init = function (json_data, data_value) {
+  var that = this;
+  var can = document.getElementById('seen-canvas');
+  // Set our canvas size
+  var width = 800
+  var height = 180
+  can.width = width;
+  can.height = height;
+  var margins = width * 0.03;
+
+  var data = json_data.data;
+  var data_max = json_data.data_max[data_value]
 
   // Make the Model and add our objects
-  var model = seen.Models["default"]();
+  this.model = seen.Models["default"]();
 
   // Boxes
   var box_pad = 0.7;
@@ -55,145 +80,237 @@ function makeGraph(json_data) {
   var high_sat = 0.54;
   var low_lum = 0.72;
   var high_lum = 0.24;
+  var selection_color = "#ee6e73";
   for (var i=0; i<data.length; i++) {
     var mat = new seen.Material();
     mat.specularExponent = 9;
-    mat.shader = seen.Flat
-    if (data[i].getValue() > 0) {
-      mat.color = seen.Colors.hsl(slide(data[i].getValue()/data_max,low_hue,high_hue),slide(data[i].getValue()/data_max,low_sat,high_sat),slide(data[i].getValue()/data_max,low_lum,high_lum));
-    } else if (data[i].getValue() < 0) {
-      mat.color = seen.Colors.hsl(slide(Math.abs(data[i].getValue())/data_max,neg_low_hue,neg_high_hue),slide(Math.abs(data[i].getValue())/data_max,low_sat,high_sat),slide(Math.abs(data[i].getValue())/data_max,low_lum,high_lum));
+    if (data[i][data_value] > 0) {
+      mat.color = seen.Colors.hsl(slide(data[i][data_value]/data_max,low_hue,high_hue),slide(data[i][data_value]/data_max,low_sat,high_sat),slide(data[i][data_value]/data_max,low_lum,high_lum));
+    } else if (data[i][data_value] < 0) {
+      mat.color = seen.Colors.hsl(slide(Math.abs(data[i][data_value])/data_max,neg_low_hue,neg_high_hue),slide(Math.abs(data[i][data_value])/data_max,low_sat,high_sat),slide(Math.abs(data[i][data_value])/data_max,low_lum,high_lum));
     } else {
-      mat.color = seen.Colors.rgb(238,238,238);
+      mat.color = seen.Colors.rgb(240, 240, 256, 180);
     }
     var box = seen.Shapes.unitcube()
-        .scale(box_size * box_pad, box_size * box_pad, (box_highest * (data[i].getValue() / data_max)) + 1)
+        .scale(box_size * box_pad, box_size * box_pad, (box_highest * (data[i][data_value] / data_max)))
         .translate(Math.floor(i/7) * (box_size), (i%7) * (-box_size), 0)
         .fill(mat);
     box.base_color = mat;
     box.color_changed = false;
-    model.add(box);
+    box.cell_data = data[i];
+    this.model.add(box);
   }
 
   // Words
   // Days of the Week
   var days = ["M","W","F"];
   for (var i=0; i<days.length; i++) {
-    model.add(seen.Shapes.text(days[i],{anchor:'center', font:'bold 14px arial'})
+    this.model.add(seen.Shapes.text(days[i],{anchor:'center', font:'bold 14px arial'})
         .translate(-box_size,-i * box_size * 2 - box_size,0)
         .fill("#000000")    
     );
   }
 
   // Create the scene, and position the model
-  model.translate((-1) * (box_size + box_pad) * (data.length / (2 * 7)), (box_size + box_pad) * (7/2), 0);
+  this.model.translate((-1) * (box_size) * (52 / 2), (box_size) * (6/2), 0);
 
   var cam = new seen.Camera({
     projection: seen.Projections.ortho()
   });
 
-  var scene = new seen.Scene({
-      model: model,
+  this.scene = new seen.Scene({
+      model: this.model,
       viewport: seen.Viewports.center(width, height),
       camera: cam,
   });
 
   // Bake it
-  model.bake();
+  this.model.bake();
 
   // Render it
-  var context = seen.Context('seen-canvas', scene).render();
+  this.context = seen.Context('seen-canvas', this.scene).render();
 
   // Set up interaction
-
   var pos = [
     {x:0, y:0, z:0},
     {x:-0.63, y:-0.3, z:-0.1}
   ]
   var total_rot = {x:0, y:0, z:0};
   var total_t = 1000;
-  var mode = 1; // the pos to go toward
-  var t_jump = -1;
+  this.mode = 1; // the pos to go toward
+  this.t_jump = -1;
 
-  var animator = context.animate();
+  this.animator = this.context.animate();
   var prev = {x: pos[0].x, y: pos[0].y, z: pos[0].z};
-  animator.onBefore(function (t,dt) {
-    model.reset().rotx(prev.x).roty(prev.y).rotz(prev.z);
-    var p = pos[mode];
-    if (t_jump < 0) {
-      t_jump = t;
+  this.animator.onBefore(function (t,dt) {
+    that.model.reset().rotx(prev.x).roty(prev.y).rotz(prev.z);
+    var p = pos[that.mode];
+    if (that.t_jump < 0) {
+      that.t_jump = t;
     }
-    if (t - t_jump < total_t) {
-      var newx = slide((t-t_jump) / total_t, prev.x, p.x); 
-      var newy = slide((t-t_jump) / total_t, prev.y, p.y); 
-      var newz = slide((t-t_jump) / total_t, prev.z, p.z); 
-      model.reset().rotx(newx).roty(newy).rotz(newz);
+    if (t - that.t_jump < total_t) {
+      var newx = slide((t-that.t_jump) / total_t, prev.x, p.x); 
+      var newy = slide((t-that.t_jump) / total_t, prev.y, p.y); 
+      var newz = slide((t-that.t_jump) / total_t, prev.z, p.z); 
+      that.model.reset().rotx(newx).roty(newy).rotz(newz);
     } else {
-      model.reset().rotx(p.x).roty(p.y).rotz(p.z);
+      that.model.reset().rotx(p.x).roty(p.y).rotz(p.z);
       prev = {x: p.x, y: p.y, z: p.z};
-      mode = (mode + 1) % pos.length;
-      animator.stop();
+      that.mode = (that.mode + 1) % pos.length;
+      that.animator.stop();
     }
   });
 
   document.getElementById("transition_button").addEventListener("click", function() {
-    t_jump = -1;
-    animator.start();
-    document.getElementById("transition_button").innerHTML = (mode == 0) ? "View 3D" : "View 2D";
+    that.t_jump = -1;
+    that.animator.start();
+    document.getElementById("transition_button").innerHTML = (that.mode == 0) ? "View 3D" : "View 2D";
   });
 
+  var prev_selected = undefined;
   // Mouseover stuff
-  var can = document.getElementById('seen-canvas');
   can.addEventListener('mousemove', function(evt) {
     var rect = can.getBoundingClientRect();
     var mp = {
       x: evt.clientX - rect.left,
       y: evt.clientY - rect.top
     };
-    for (var i=0; i<model.children.length; i++) {
+    // the mouse could be on more than one, so we need to find the closest one
+    var mouse_on = [];
+    for (var i=0; i<that.model.children.length; i++) {
+      if (that.model.children[i].base_color === undefined) {
+        continue;
+      }
       var min = {};
       var max = {};
-      for (var j=0; j<model.children[i].surfaces.length; j++) {
-        var proj = scene._renderModelCache[model.children[i].surfaces[j].id].projected.bounds;
-        min.x = (min.x == undefined || min.x > proj.min.x) ? proj.min.x : min.x;
-        min.y = (min.y == undefined || min.y > proj.min.y) ? proj.min.y : min.y;
-        max.x = (max.x == undefined || max.x < proj.max.x) ? proj.max.x : max.x;
-        max.y = (max.y == undefined || max.y < proj.max.y) ? proj.max.y : max.y;
+      var zlevels = [];
+      for (var j=0; j<that.model.children[i].surfaces.length; j++) {
+        var proj = that.scene._renderModelCache[that.model.children[i].surfaces[j].id].projected;
+        min.x = (min.x == undefined || min.x > proj.bounds.min.x) ? proj.bounds.min.x : min.x;
+        min.y = (min.y == undefined || min.y > proj.bounds.min.y) ? proj.bounds.min.y : min.y;
+        max.x = (max.x == undefined || max.x < proj.bounds.max.x) ? proj.bounds.max.x : max.x;
+        max.y = (max.y == undefined || max.y < proj.bounds.max.y) ? proj.bounds.max.y : max.y;
+        zlevels.push(proj.barycenter.z);
       }
       if (mp.x < max.x && mp.y < max.y && mp.x > min.x && mp.y > min.y) {
-        for (var j=0; j<model.children[i].surfaces.length; j++) {
-          model.children[i].surfaces[j].fill("#FF0000");
-        }
-        model.children[i].color_changed = true;
-      } else {
-        if (model.children[i].color_changed) { 
-          for (var j=0; j<model.children[i].surfaces.length; j++) {
-            model.children[i].surfaces[j].fill(model.children[i].base_color);
-          }
+        mouse_on.push({box: that.model.children[i], zlevels: zlevels});
+      } else if (that.model.children[i] == prev_selected) { 
+        prev_selected = undefined;
+      }
+      if (that.model.children[i].color_changed && that.model.children[i] != prev_selected) { 
+        for (var j=0; j<that.model.children[i].surfaces.length; j++) {
+          that.model.children[i].surfaces[j].fill(that.model.children[i].base_color);
+          color_changed = false;
         }
       }
     }
-    context.render();
+    // find the closest
+    if (mouse_on.length > 0) {
+      var closest = undefined;
+      var closest_z = undefined;
+      for (var i=0; i<mouse_on.length; i++) {
+        var avg = 0;
+        for (var j=0; j<mouse_on[i].zlevels.length; j++) {
+          avg += mouse_on[i].zlevels[j];
+        }
+        avg = avg / mouse_on[i].zlevels.length;
+        if (closest_z === undefined || avg < closest_z) {
+          closest = mouse_on[i].box;
+          closest_z = avg;
+        }
+      }
+
+      if (prev_selected === undefined || closest != prev_selected) {
+        for (var i=0; i<closest.surfaces.length; i++) {
+          closest.surfaces[i].fill(selection_color);
+        }
+        closest.color_changed = true;
+        that.select_callout(closest.cell_data);
+        prev_selected = closest;
+      }
+    }
+    that.context.render();
   }, false);
 
   var dragger = new seen.Drag('seen-canvas', {inertia : false});
   dragger.on('drag.rotate', function(e) {
-    //var ref = seen.Quaternion;
-    //var xform = ref.xyToTransform.apply(ref, e.offsetRelative);
-    //model.transform(xform);
     var newx = e.offsetRelative[1] * 1e-2;
     var newy = e.offsetRelative[0] * 1e-2;
     prev.x += newx;
     prev.y += newy;
-    model.reset().rotx(prev.x).roty(prev.y);
-    mode = 0;
+    that.model.reset().rotx(prev.x).roty(prev.y).rotz(prev.z);
+    that.mode = 0;
     document.getElementById("transition_button").innerHTML = "View 2D";
-    return context.render();
+    return that.context.render();
   });
-}
+};
 
 function slide(percent, low, high) {
   return low + ((high - low) * (percent));
+}
+
+function processData(json_data) {
+  var data = [];
+  var data_max = {wc_delta:300, wc_hours:1, wc_count:300};
+  var previous_words = 0;
+  for (var i=0; i<364; i++) {
+    // get this cells date
+    var d = new Date();
+    // getDate - 363 goes back to a year ago
+    // + i offsets our cell
+    // + (6 - d.getDay) makes us line up on Sunday
+    d.setDate((d.getDate() - 363) + i + (6 - d.getDay()));
+    if (i == 363) {
+      data_max.wc_date = d;
+    }
+    var cell_data = {};
+    // See if there is a json_data entry for this date
+    for (var j=0; j<json_data.length; j++) {
+      if (json_data[j].wc_date == d.toISOString().substring(0,10)) {
+        // add it to the collection and remove it from our json_data
+        cell_data = json_data.splice(j,1)[0];
+        cell_data.wc_date = d;
+        cell_data.wc_delta = cell_data.wc_count - previous_words;
+        previous_words = cell_data.wc_count;
+
+        data_max = {
+          wc_delta: (Math.abs(cell_data.wc_delta) > data_max.wc_delta) ? Math.abs(cell_data.wc_delta) : data_max.wc_delta,
+          wc_hours: (Math.abs(cell_data.wc_hours) > data_max.wc_hours) ? Math.abs(cell_data.wc_hours) : data_max.wc_hours,
+          wc_count: (Math.abs(cell_data.wc_count) > data_max.wc_count) ? Math.abs(cell_data.wc_count) : data_max.wc_count,
+        }
+        break;
+      }
+    }
+    if (cell_data.wc_date === undefined) {
+      cell_data.wc_date = d;
+      cell_data.wc_delta = 0;
+      cell_data.wc_hours = 0;
+      cell_data.wc_count = 0;
+    }
+    data.push(cell_data);
+  }
+  return {data: data, data_max: data_max};
+}
+
+var gGraph = new gitGraph();
+var lGraph = new lineGraph();
+
+var data_colors = {
+  wc_delta: "#0E3D59",
+  wc_count: "#88A61B",
+  wc_hours: "#F29F05",
+};
+
+function writeInfo(cell_data) {
+  var info_area = document.getElementById("selection_info");
+  var output = '<div class="col s12"></div>';
+  output += '<div class="chip">Date : '+ cell_data.wc_date.toDateString().substring(4,10) +'</div>';
+  output += '<div class="chip" style="background-color: '+ data_colors.wc_count +'">Word Count : '+ cell_data.wc_count.toString() +'</div>';
+  output += '<div class="chip" style="background-color: '+ data_colors.wc_delta +'">Words Added : '+ cell_data.wc_delta.toString() +'</div>';
+  output += '<div class="chip" style="background-color: '+ data_colors.wc_hours +'">Words Added : '+ cell_data.wc_hours.toString() +'</div>';
+  output += '<div class="chip">Book : '+ ((cell_data.wc_book != undefined) ? cell_data.wc_book : '') +'</div>';
+  output += '<div class="chip">Role : '+ ((cell_data.wc_book != undefined) ? cell_data.wc_book : '') +'</div>';
+  info_area.innerHTML = output;
 }
 
 function main() {
@@ -202,8 +319,22 @@ function main() {
 
   xmlhttp.onreadystatechange = function() {
     if (xmlhttp.readyState == 4 && xmlhttp.status == 200) {
-      var data = JSON.parse(xmlhttp.responseText);
-      makeGraph(data);
+      var data = processData(JSON.parse(xmlhttp.responseText));
+      gGraph.init(data, 'wc_delta');
+      gGraph.select_callout = function (cell_data) {
+        // set the text panel
+        writeInfo(cell_data);
+        // set the selection on the line graph
+      };
+      lGraph.init(data, 'wc_date', ['wc_delta', 'wc_count', 'wc_hours']);
+
+      var today = new Date();
+      for (var i=data.data.length - 1; i >= 0; i--) {
+        if (today.toDateString() == data.data[i].wc_date.toDateString()) {
+          writeInfo(data.data[i]);
+          break;
+        }
+      }
     }
   };
   xmlhttp.open("GET", url, true);

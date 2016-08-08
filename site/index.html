@@ -2,11 +2,48 @@
 <html>
   <head>
     <script src="js/seen.min.js"></script>
-    <link rel="stylesheet" href="http://yui.yahooapis.com/pure/0.6.0/pure-min.css">
+    <script src="https://d3js.org/d3.v4.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/materialize/0.97.7/css/materialize.min.css">
+    <style>
+      .axis--x path {
+        display: none;
+      }
+
+      .line {
+        fill: none;
+        stroke: steelblue;
+        stroke-width: 1.5px;
+      }
+    </style>
   </head>
-  <center>
-    <canvas width="900" height="270" id="seen-canvas"></canvas>
-    <br><button class="pure-button" id="transition_button">View 3D</button>
-  </center>
+<body>
+  <nav>
+    <div class="nav-wrapper">
+      <a href="#" class="brand-logo center">Meredith's Metrics</a>
+      <ul id="nav-mobile" class="right hide-on-med-and-down">
+        <li><a href="http://blog.meredithgrayce.com/">Blog</a></li>
+        <li><a href="./update">Update</a></li>
+      </ul>
+    </div>
+  </nav>
+    <div class="container">
+      <div class="card">
+        <div class="card-content center-align">
+          <svg width="800" height="300" id="line-svg"></svg>
+        </div>
+        <div class="col s12">
+          <div class="card-panel">
+            <div class="row" id="selection_info"></div>
+          </div>
+        </div>
+        <div class="card-content center-align">
+          <canvas width="800" height="180" id="seen-canvas"></canvas>
+        </div>
+        <div class="card-action center-align">
+          <button class="waves-effect waves-light btn" id="transition_button">View 3D</button>
+        </div>
+      </div>
+    </div>
   <script src="js/3dgraph.js"></script>
+</body>
 </html>

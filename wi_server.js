@@ -10,6 +10,8 @@ var swig = require('swig');
 var redis = require('redis');
 var client = redis.createClient();
 
+var user = require('./user.json');
+
 app.engine('html', swig.renderFile);
 app.set('view engine', 'html');
 app.set('views', __dirname + '/views');
@@ -62,15 +64,21 @@ function mapResults(value) {
 
 app.get('/update', function(req, res) {
   var d = new Date();
-  var previous = {book: "Your Book", count: 0};
+  var previous = {book: "#TODO", count: 0, name: "Meredith"};
   res.render('update', {today: d.toISOString().substring(0,10), previous: previous});
 });
 
 app.post('/update', function(req,res) {
   reply = req.body;
+  if (reply.username != user.user || reply.passwrd != user.password) {
+    res.send("Incorrect Username/Password");
+    return;
+  }
+  res.send("testing");
+  return;
   client.hmset(reply.wc_date, reply, function(err, reply) {
     if (reply !== null) {
-      res.send(reply);
+      res.redirect('/');
     } else {
       res.send("Error");
     }

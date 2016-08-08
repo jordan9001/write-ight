@@ -25,7 +25,7 @@ lineGraph.prototype.init = function (json_data, date_value, y_values) {
 
   for (var val=0; val<y_values.length; val++) {
     var y = d3.scaleLinear().range([height, 0]);
-    y.domain([-1, json_data.data_max[y_values[val]]]);
+    y.domain([0, json_data.data_max[y_values[val]]]);
     
     var line = d3.line()
         .curve(d3.curveBasis)
@@ -307,7 +307,7 @@ function writeInfo(cell_data) {
   output += '<div class="chip">Date : '+ cell_data.wc_date.toDateString().substring(4,10) +'</div>';
   output += '<div class="chip" style="background-color: '+ data_colors.wc_count +'">Word Count : '+ cell_data.wc_count.toString() +'</div>';
   output += '<div class="chip" style="background-color: '+ data_colors.wc_delta +'">Words Added : '+ cell_data.wc_delta.toString() +'</div>';
-  output += '<div class="chip" style="background-color: '+ data_colors.wc_hours +'">Words Added : '+ cell_data.wc_hours.toString() +'</div>';
+  output += '<div class="chip" style="background-color: '+ data_colors.wc_hours +'">Hours : '+ cell_data.wc_hours.toString() +'</div>';
   output += '<div class="chip">Book : '+ ((cell_data.wc_book != undefined) ? cell_data.wc_book : '') +'</div>';
   output += '<div class="chip">Role : '+ ((cell_data.wc_book != undefined) ? cell_data.wc_book : '') +'</div>';
   info_area.innerHTML = output;

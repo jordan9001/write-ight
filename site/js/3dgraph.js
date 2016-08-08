@@ -315,7 +315,7 @@ function writeInfo(cell_data) {
 
 function main() {
   var xmlhttp = new XMLHttpRequest();
-  var url = "testdata.json";
+  var url = "data";
 
   xmlhttp.onreadystatechange = function() {
     if (xmlhttp.readyState == 4 && xmlhttp.status == 200) {

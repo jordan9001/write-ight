@@ -99,6 +99,15 @@ gitGraph.prototype.init = function (json_data, data_value) {
     box.color_changed = false;
     box.cell_data = data[i];
     this.model.add(box);
+    
+    // Add Month tag
+    if (data[i].wc_date.getDate() == 1) {
+      var month = data[i].wc_date.toDateString().substring(4,7);
+      this.model.add(seen.Shapes.text(month,{anchor:'left', font:'bold 14px arial'})
+        .translate(box_size, (Math.floor(i/7) + 0.65) * (-box_size), 0)
+        .rotz(1.5708)
+        .fill("#000000"));
+    }
   }
 
   // Words
@@ -285,7 +294,7 @@ function processData(json_data) {
       cell_data.wc_date = d;
       cell_data.wc_delta = 0;
       cell_data.wc_hours = 0;
-      cell_data.wc_count = 0;
+      cell_data.wc_count = previous_words;
     }
     data.push(cell_data);
   }

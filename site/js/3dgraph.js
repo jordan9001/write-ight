@@ -1,4 +1,10 @@
 
+var data_colors = {
+  wc_delta: "#0E3D59",
+  wc_count: "#88A61B",
+  wc_hours: "#F29F05",
+};
+
 var lineGraph = function() {
 }
 
@@ -36,7 +42,7 @@ lineGraph.prototype.init = function (json_data, date_value, y_values) {
         .datum(json_data.data)
         .attr("class", "line")
         .attr("d", function(d) { return line(json_data.data); })
-        .style("stroke", function(d) { return z(val); });
+        .style("stroke", function(d) { return data_colors[y_values[val]]; });
   }
 }
 
@@ -261,6 +267,7 @@ function slide(percent, low, high) {
 function processData(json_data) {
   var data = [];
   var data_max = {wc_delta:300, wc_hours:1, wc_count:300};
+  var data_min = {wc_delta:0, wc_hours:0, wc_count:0};
   var previous_words = 0;
   for (var i=0; i<364; i++) {
     // get this cells date
@@ -271,6 +278,8 @@ function processData(json_data) {
     d.setDate((d.getDate() - 363) + i + (6 - d.getDay()));
     if (i == 363) {
       data_max.wc_date = d;
+    } else if (i == 0) {
+      data_min.wc_date = d;
     }
     var cell_data = {};
     // See if there is a json_data entry for this date
@@ -281,12 +290,6 @@ function processData(json_data) {
         cell_data.wc_date = d;
         cell_data.wc_delta = cell_data.wc_count - previous_words;
         previous_words = cell_data.wc_count;
-
-        data_max = {
-          wc_delta: (Math.abs(cell_data.wc_delta) > data_max.wc_delta) ? Math.abs(cell_data.wc_delta) : data_max.wc_delta,
-          wc_hours: (Math.abs(cell_data.wc_hours) > data_max.wc_hours) ? Math.abs(cell_data.wc_hours) : data_max.wc_hours,
-          wc_count: (Math.abs(cell_data.wc_count) > data_max.wc_count) ? Math.abs(cell_data.wc_count) : data_max.wc_count,
-        }
         break;
       }
     }
@@ -298,17 +301,31 @@ function processData(json_data) {
     }
     data.push(cell_data);
   }
-  return {data: data, data_max: data_max};
+  
+  // Find max and min, none outliers
+  var min_max = [];
+  min_max = stat_minmax(data.map(function (x) {return x.wc_delta}));
+  data_max.wc_delta = (data_max.wc_delta > min_max[1]) ? data_max.wc_delta : min_max[1];
+  data_min.wc_delta = (data_min.wc_delta < min_max[0]) ? data_min.wc_delta : min_max[0];
+  
+  min_max = stat_minmax(data.map(function (x) {return x.wc_hours}));
+  data_max.wc_hours = (data_max.wc_hours > min_max[1]) ? data_max.wc_hours : min_max[1];
+  data_min.wc_hours = (data_min.wc_hours < min_max[0]) ? data_min.wc_hours : min_max[0];
+ 
+  min_max = stat_minmax(data.map(function (x) {return x.wc_count}));
+  data_max.wc_count = (data_max.wc_count > min_max[1]) ? data_max.wc_count : min_max[1];
+  data_min.wc_count = (data_min.wc_count < min_max[0]) ? data_min.wc_count : min_max[0];
+  
+  return {data: data, data_max: data_max, data_min: data_min};
+}
+
+function stat_minmax(in_arr) {
+  in_arr.sort(function (a,b) { });
 }
 
 var gGraph = new gitGraph();
 var lGraph = new lineGraph();
 
-var data_colors = {
-  wc_delta: "#0E3D59",
-  wc_count: "#88A61B",
-  wc_hours: "#F29F05",
-};
 
 function writeInfo(cell_data) {
   var info_area = document.getElementById("selection_info");
@@ -318,7 +335,6 @@ function writeInfo(cell_data) {
   output += '<div class="chip" style="background-color: '+ data_colors.wc_delta +'">Words Added : '+ cell_data.wc_delta.toString() +'</div>';
   output += '<div class="chip" style="background-color: '+ data_colors.wc_hours +'">Hours : '+ cell_data.wc_hours.toString() +'</div>';
   output += '<div class="chip">Book : '+ ((cell_data.wc_book != undefined) ? cell_data.wc_book : '') +'</div>';
-  output += '<div class="chip">Role : '+ ((cell_data.wc_book != undefined) ? cell_data.wc_book : '') +'</div>';
   info_area.innerHTML = output;
 }
 

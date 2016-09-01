@@ -74,8 +74,6 @@ app.post('/update', function(req,res) {
     res.send("Incorrect Username/Password");
     return;
   }
-  res.send("testing");
-  return;
   client.hmset(reply.wc_date, reply, function(err, reply) {
     if (reply !== null) {
       res.redirect('/');

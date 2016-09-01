@@ -19,8 +19,7 @@ lineGraph.prototype.init = function (json_data, date_value, y_values) {
       z = d3.scaleOrdinal(d3.schemeCategory10);
 
   var max_date = json_data.data_max[date_value];
-  var min_date = new Date(max_date.getTime());
-  min_date.setDate(max_date.getDate() - 364);
+  var min_date = json_data.data_min[date_value];
 
   x.domain([min_date, max_date]);
 
@@ -31,7 +30,7 @@ lineGraph.prototype.init = function (json_data, date_value, y_values) {
 
   for (var val=0; val<y_values.length; val++) {
     var y = d3.scaleLinear().range([height, 0]);
-    y.domain([0, json_data.data_max[y_values[val]]]);
+    y.domain([json_data.data_min[y_values[val]], json_data.data_max[y_values[val]]]);
     
     var line = d3.line()
         .curve(d3.curveBasis)
@@ -69,7 +68,9 @@ gitGraph.prototype.init = function (json_data, data_value) {
   var margins = width * 0.03;
 
   var data = json_data.data;
-  var data_max = json_data.data_max[data_value]
+  var data_max = json_data.data_max[data_value];
+  var data_min = json_data.data_min[data_value];
+  data_max = (Math.abs(data_min) > data_max) ? Math.abs(data_min) : data_max;
 
   // Make the Model and add our objects
   this.model = seen.Models["default"]();
@@ -266,8 +267,8 @@ function slide(percent, low, high) {
 
 function processData(json_data) {
   var data = [];
-  var data_max = {wc_delta:300, wc_hours:1, wc_count:300};
-  var data_min = {wc_delta:0, wc_hours:0, wc_count:0};
+  var data_max = {wc_delta:300, wc_hours:1, wc_count:500}; // default max
+  var data_min = {wc_delta:0, wc_hours:0, wc_count:0}; // default min
   var previous_words = 0;
   for (var i=0; i<364; i++) {
     // get this cells date
@@ -320,7 +321,23 @@ function processData(json_data) {
 }
 
 function stat_minmax(in_arr) {
-  in_arr.sort(function (a,b) { });
+  in_arr.sort(function (a,b) {return a-b});
+  if (in_arr.length < 3) {
+    return [in_arr[0], in_arr[in_arr.length - 1]];
+  }
+  var i1, i2, i3;
+  i2 = Math.floor(in_arr.length / 2);
+  i1 = Math.floor(i2 / 2);
+  i3 = i2 + i1;
+
+  var iqr = in_arr[i3] - in_arr[i1];
+  var min = in_arr[i1] - (1.5 * iqr);
+  var max = in_arr[i3] + (1.5 * iqr);
+
+  min = (min < in_arr[0]) ? in_arr[0] : min;
+  max = (max > in_arr[in_arr.length - 1]) ? in_arr[in_arr.length - 1] : max;
+  
+  return [min, max];
 }
 
 var gGraph = new gitGraph();

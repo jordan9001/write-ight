@@ -294,6 +294,12 @@ function processData(json_data) {
         cell_data.wc_delta = cell_data.wc_count - previous_words;
         previous_words = cell_data.wc_count;
         cell_data.generated = false;
+        
+        if (cell_data.wc_total) {
+          // The newest prediction should always be the best
+          data_max.wc_count = cell_data.wc_total;
+        }
+        
         break;
       }
     }
@@ -317,11 +323,7 @@ function processData(json_data) {
   min_max = stat_minmax(data.filter(function (x) {return x.generated == false}).map(function (x) {return x.wc_hours}));
   data_max.wc_hours = (data_max.wc_hours > min_max[1]) ? data_max.wc_hours : min_max[1];
   data_min.wc_hours = (data_min.wc_hours < min_max[0]) ? data_min.wc_hours : min_max[0];
- 
-  min_max = stat_minmax(data.filter(function (x) {return x.generated == false}).map(function (x) {return x.wc_count}));
-  data_max.wc_count = (data_max.wc_count > min_max[1]) ? data_max.wc_count : min_max[1];
-  data_min.wc_count = (data_min.wc_count < min_max[0]) ? data_min.wc_count : min_max[0];
-  
+
   return {data: data, data_max: data_max, data_min: data_min};
 }
 

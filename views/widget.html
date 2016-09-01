@@ -1,0 +1,9 @@
+<div class="post-meta-item" style="text-align:left">
+<span>Book Progress: <i>{{book.title}}</i></span><br>
+<svg width="{{size.width}}" height="{{size.height}}">
+<rect rx="5" ry="9" width="{{size.width}}" height="{{size.backheight}}" style="fill:#{{color.back}};stroke:rgba(0,0,0,0.1);stroke-width:1;"></rect>
+<rect y="3" x="4" rx="3" ry="5" width="{{size.frontwidth}}" height="{{size.frontheight}}" style="fill:#{{color.front}}"></rect>
+<text x="15" y="{{size.ywordspad}}" font-family="'Noto Serif',Georgia,Cambria,'Times New Roman',Times,serif" font-size="{{size.wordsize}}">
+{{book.count}}
+</text>
+</svg>

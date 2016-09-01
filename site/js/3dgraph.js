@@ -57,7 +57,7 @@ var gitGraph = function() {
   this.select_callout = undefined;
 }
 
-gitGraph.prototype.init = function (json_data, data_value) {
+gitGraph.prototype.init = function (json_data, time_value, data_value) {
   var that = this;
   var can = document.getElementById('seen-canvas');
   // Set our canvas size
@@ -89,6 +89,12 @@ gitGraph.prototype.init = function (json_data, data_value) {
   var high_lum = 0.24;
   var selection_color = "#ee6e73";
   for (var i=0; i<data.length; i++) {
+    // Are we in the future? If so, get out of here
+    var d = new Date();
+    if (data[i].generated && data[i][time_value] > d) {
+      break;
+    }
+    
     var mat = new seen.Material();
     mat.specularExponent = 9;
     if (data[i][data_value] > 0) {
@@ -108,8 +114,8 @@ gitGraph.prototype.init = function (json_data, data_value) {
     this.model.add(box);
     
     // Add Month tag
-    if (data[i].wc_date.getDate() == 1) {
-      var month = data[i].wc_date.toDateString().substring(4,7);
+    if (data[i][time_value].getDate() == 1) {
+      var month = data[i][time_value].toDateString().substring(4,7);
       this.model.add(seen.Shapes.text(month,{anchor:'left', font:'bold 14px arial'})
         .translate(box_size, (Math.floor(i/7) + 0.65) * (-box_size), 0)
         .rotz(1.5708)
@@ -271,7 +277,8 @@ function processData(json_data) {
   var data_max = {wc_delta:300, wc_hours:1, wc_count:500}; // default max
   var data_min = {wc_delta:0, wc_hours:0, wc_count:0}; // default min
 
-  var previous_words = 0;
+  var previous_count = 0;
+  var previous_book = "";
   for (var i=0; i<364; i++) {
     // get this cells date
     var d = new Date();
@@ -291,9 +298,10 @@ function processData(json_data) {
         // add it to the collection and remove it from our json_data
         cell_data = json_data.splice(j,1)[0];
         cell_data.wc_date = d;
-        cell_data.wc_delta = cell_data.wc_count - previous_words;
-        previous_words = cell_data.wc_count;
+        cell_data.wc_delta = cell_data.wc_count - previous_count;
         cell_data.generated = false;
+        previous_count = cell_data.wc_count;
+        previous_book = cell_data.wc_book;
         
         if (cell_data.wc_total) {
           // The newest prediction should always be the best
@@ -307,7 +315,8 @@ function processData(json_data) {
       cell_data.wc_date = d;
       cell_data.wc_delta = 0;
       cell_data.wc_hours = 0;
-      cell_data.wc_count = previous_words;
+      cell_data.wc_count = previous_count;
+      cell_data.wc_book = previous_book;
       cell_data.generated = true;
     }
     data.push(cell_data);
@@ -370,7 +379,7 @@ function main() {
   xmlhttp.onreadystatechange = function() {
     if (xmlhttp.readyState == 4 && xmlhttp.status == 200) {
       var data = processData(JSON.parse(xmlhttp.responseText));
-      gGraph.init(data, 'wc_delta');
+      gGraph.init(data, 'wc_date', 'wc_delta');
       gGraph.select_callout = function (cell_data) {
         // set the text panel
         writeInfo(cell_data);

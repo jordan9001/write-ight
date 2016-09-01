@@ -267,8 +267,23 @@ function slide(percent, low, high) {
 
 function processData(json_data) {
   var data = [];
+  
+  // Find max and min, without outliers
   var data_max = {wc_delta:300, wc_hours:1, wc_count:500}; // default max
   var data_min = {wc_delta:0, wc_hours:0, wc_count:0}; // default min
+  var min_max = [];
+  min_max = stat_minmax(json_data.map(function (x) {return x.wc_delta}));
+  data_max.wc_delta = (data_max.wc_delta > min_max[1]) ? data_max.wc_delta : min_max[1];
+  data_min.wc_delta = (data_min.wc_delta < min_max[0]) ? data_min.wc_delta : min_max[0];
+  
+  min_max = stat_minmax(json_data.map(function (x) {return x.wc_hours}));
+  data_max.wc_hours = (data_max.wc_hours > min_max[1]) ? data_max.wc_hours : min_max[1];
+  data_min.wc_hours = (data_min.wc_hours < min_max[0]) ? data_min.wc_hours : min_max[0];
+ 
+  min_max = stat_minmax(json_data.map(function (x) {return x.wc_count}));
+  data_max.wc_count = (data_max.wc_count > min_max[1]) ? data_max.wc_count : min_max[1];
+  data_min.wc_count = (data_min.wc_count < min_max[0]) ? data_min.wc_count : min_max[0];
+
   var previous_words = 0;
   for (var i=0; i<364; i++) {
     // get this cells date
@@ -302,20 +317,6 @@ function processData(json_data) {
     }
     data.push(cell_data);
   }
-  
-  // Find max and min, none outliers
-  var min_max = [];
-  min_max = stat_minmax(data.map(function (x) {return x.wc_delta}));
-  data_max.wc_delta = (data_max.wc_delta > min_max[1]) ? data_max.wc_delta : min_max[1];
-  data_min.wc_delta = (data_min.wc_delta < min_max[0]) ? data_min.wc_delta : min_max[0];
-  
-  min_max = stat_minmax(data.map(function (x) {return x.wc_hours}));
-  data_max.wc_hours = (data_max.wc_hours > min_max[1]) ? data_max.wc_hours : min_max[1];
-  data_min.wc_hours = (data_min.wc_hours < min_max[0]) ? data_min.wc_hours : min_max[0];
- 
-  min_max = stat_minmax(data.map(function (x) {return x.wc_count}));
-  data_max.wc_count = (data_max.wc_count > min_max[1]) ? data_max.wc_count : min_max[1];
-  data_min.wc_count = (data_min.wc_count < min_max[0]) ? data_min.wc_count : min_max[0];
   
   return {data: data, data_max: data_max, data_min: data_min};
 }

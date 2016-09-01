@@ -327,7 +327,8 @@ function processData(json_data) {
 
 function stat_minmax(in_arr) {
   in_arr.sort(function (a,b) {return a-b});
-  if (in_arr.length < 3) {
+  // Unless we have 6 items, we wont bother looking for outlires
+  if (in_arr.length < 6) {
     return [in_arr[0], in_arr[in_arr.length - 1]];
   }
   var i1, i2, i3;

@@ -61,8 +61,8 @@ gitGraph.prototype.init = function (json_data, data_value) {
   var that = this;
   var can = document.getElementById('seen-canvas');
   // Set our canvas size
-  var width = 800
-  var height = 180
+  var width = 800;
+  var height = 195;
   can.width = width;
   can.height = height;
   var margins = width * 0.03;
@@ -266,23 +266,10 @@ function slide(percent, low, high) {
 }
 
 function processData(json_data) {
-  var data = [];
-  
-  // Find max and min, without outliers
+  var data = []; 
+
   var data_max = {wc_delta:300, wc_hours:1, wc_count:500}; // default max
   var data_min = {wc_delta:0, wc_hours:0, wc_count:0}; // default min
-  var min_max = [];
-  min_max = stat_minmax(json_data.map(function (x) {return x.wc_delta}));
-  data_max.wc_delta = (data_max.wc_delta > min_max[1]) ? data_max.wc_delta : min_max[1];
-  data_min.wc_delta = (data_min.wc_delta < min_max[0]) ? data_min.wc_delta : min_max[0];
-  
-  min_max = stat_minmax(json_data.map(function (x) {return x.wc_hours}));
-  data_max.wc_hours = (data_max.wc_hours > min_max[1]) ? data_max.wc_hours : min_max[1];
-  data_min.wc_hours = (data_min.wc_hours < min_max[0]) ? data_min.wc_hours : min_max[0];
- 
-  min_max = stat_minmax(json_data.map(function (x) {return x.wc_count}));
-  data_max.wc_count = (data_max.wc_count > min_max[1]) ? data_max.wc_count : min_max[1];
-  data_min.wc_count = (data_min.wc_count < min_max[0]) ? data_min.wc_count : min_max[0];
 
   var previous_words = 0;
   for (var i=0; i<364; i++) {
@@ -306,6 +293,7 @@ function processData(json_data) {
         cell_data.wc_date = d;
         cell_data.wc_delta = cell_data.wc_count - previous_words;
         previous_words = cell_data.wc_count;
+        cell_data.generated = false;
         break;
       }
     }
@@ -314,9 +302,25 @@ function processData(json_data) {
       cell_data.wc_delta = 0;
       cell_data.wc_hours = 0;
       cell_data.wc_count = previous_words;
+      cell_data.generated = true;
     }
     data.push(cell_data);
   }
+
+
+  // Find max and min, without outliers
+  var min_max = [];
+  min_max = stat_minmax(data.filter(function (x) {return x.generated == false}).map(function (x) {return x.wc_delta}));
+  data_max.wc_delta = (data_max.wc_delta > min_max[1]) ? data_max.wc_delta : min_max[1];
+  data_min.wc_delta = (data_min.wc_delta < min_max[0]) ? data_min.wc_delta : min_max[0];
+  
+  min_max = stat_minmax(data.filter(function (x) {return x.generated == false}).map(function (x) {return x.wc_hours}));
+  data_max.wc_hours = (data_max.wc_hours > min_max[1]) ? data_max.wc_hours : min_max[1];
+  data_min.wc_hours = (data_min.wc_hours < min_max[0]) ? data_min.wc_hours : min_max[0];
+ 
+  min_max = stat_minmax(data.filter(function (x) {return x.generated == false}).map(function (x) {return x.wc_count}));
+  data_max.wc_count = (data_max.wc_count > min_max[1]) ? data_max.wc_count : min_max[1];
+  data_min.wc_count = (data_min.wc_count < min_max[0]) ? data_min.wc_count : min_max[0];
   
   return {data: data, data_max: data_max, data_min: data_min};
 }

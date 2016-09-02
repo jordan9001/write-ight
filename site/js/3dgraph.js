@@ -81,7 +81,6 @@ lineGraph.prototype.init = function (json_data, date_value, y_values) {
     .on("mousemove", mousemove);
 
   this.select_callin = function (d) {
-    console.log("This got called");
     if (d == undefined) {
       for (var i=0; i<focus.length; i++) {
         focus[i].style("display", "none");

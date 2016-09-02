@@ -1,14 +1,17 @@
 
 var data_colors = {
+  wc_hours: "#F29F05",
   wc_delta: "#0E3D59",
   wc_count: "#88A61B",
-  wc_hours: "#F29F05",
 };
 
 var lineGraph = function() {
+  this.select_callout = undefined;
+  this.select_callin = undefined;
 }
 
 lineGraph.prototype.init = function (json_data, date_value, y_values) {
+  var that = this;
   var svg = d3.select("svg"),
       margin = {top: 20, right: 80, bottom: 30, left: 50},
       width = svg.attr("width") - margin.left - margin.right,
@@ -23,6 +26,9 @@ lineGraph.prototype.init = function (json_data, date_value, y_values) {
 
   x.domain([min_date, max_date]);
 
+  var focus = [];
+  var ys = [];
+
   g.append("g")
       .attr("class", "axis axis--x")
       .attr("transform", "translate(0," + height + ")")
@@ -31,7 +37,8 @@ lineGraph.prototype.init = function (json_data, date_value, y_values) {
   for (var val=0; val<y_values.length; val++) {
     var y = d3.scaleLinear().range([height, 0]);
     y.domain([json_data.data_min[y_values[val]], json_data.data_max[y_values[val]]]);
-    
+    ys.push(y);
+
     var line = d3.line()
         .curve(d3.curveBasis)
         .x(function(d) { return x(d[date_value]); })
@@ -42,6 +49,59 @@ lineGraph.prototype.init = function (json_data, date_value, y_values) {
         .attr("class", "line")
         .attr("d", function(d) { return line(json_data.data); })
         .style("stroke", function(d) { return data_colors[y_values[val]]; });
+  
+    // Mouseover stuff
+    var tfocus = svg.append("g")
+      .attr("class", "focus")
+      .style("display", "none");
+
+    tfocus.append("circle")
+      .attr("r", 4.5)
+      .style("fill", "none")
+      .style("stroke", function(d) { return data_colors[y_values[val]] });
+  
+    focus.push(tfocus);
+  }
+
+  svg.append("rect")
+    .style("fill", "none")
+    .style("pointer-events", "all")
+    .attr("width", width)
+    .attr("height", height)
+    .on("mouseover", function() {
+      for (var i=0; i<focus.length; i++) {
+        focus[i].style("display", null);
+      }
+    })
+    .on("mouseout", function() {
+      for (var i=0; i<focus.length; i++) {
+        focus[i].style("display", "none");
+      }
+    })
+    .on("mousemove", mousemove);
+
+  this.select_callin = function (d) {
+    console.log("This got called");
+    if (d == undefined) {
+      for (var i=0; i<focus.length; i++) {
+        focus[i].style("display", "none");
+      }
+      return;
+    }
+    for (var i=0; i<focus.length; i++) {
+      focus[i].style("display", null);
+      focus[i].attr("transform", "translate(" + x(d[date_value]) + "," + ys[i](d[y_values[i]]) + ")");
+    }
+    // refresh d3
+  }
+
+  var bisect = d3.bisector(function(d) { return d[date_value]; }).right;
+  
+  function mousemove() {
+    var mouse_date = x.invert(d3.mouse(this)[0]);
+    var d = json_data.data[bisect(json_data.data, mouse_date, 1)];
+    // display info
+    that.select_callout(d);
   }
 }
 
@@ -55,6 +115,7 @@ var gitGraph = function() {
   this.t_jump = -1;
 
   this.select_callout = undefined;
+  this.select_callin = undefined;
 }
 
 gitGraph.prototype.init = function (json_data, time_value, data_value) {
@@ -89,12 +150,6 @@ gitGraph.prototype.init = function (json_data, time_value, data_value) {
   var high_lum = 0.24;
   var selection_color = "#ee6e73";
   for (var i=0; i<data.length; i++) {
-    // Are we in the future? If so, get out of here
-    var d = new Date();
-    if (data[i].generated && data[i][time_value] > d) {
-      break;
-    }
-    
     var mat = new seen.Material();
     mat.specularExponent = 9;
     if (data[i][data_value] > 0) {
@@ -265,6 +320,11 @@ gitGraph.prototype.init = function (json_data, time_value, data_value) {
     document.getElementById("transition_button").innerHTML = "View 2D";
     return that.context.render();
   });
+
+  this.select_callin = function(cell_data) {
+    // highlight the day
+    // TODO
+  }
 };
 
 function slide(percent, low, high) {
@@ -286,9 +346,8 @@ function processData(json_data) {
     // + i offsets our cell
     // + (6 - d.getDay) makes us line up on Sunday
     d.setDate((d.getDate() - 363) + i + (6 - d.getDay()));
-    if (i == 363) {
-      data_max.wc_date = d;
-    } else if (i == 0) {
+    data_max.wc_date = d;
+    if (i == 0) {
       data_min.wc_date = d;
     }
     var cell_data = {};
@@ -312,6 +371,11 @@ function processData(json_data) {
       }
     }
     if (cell_data.wc_date === undefined) {
+      // We don't have a point for this day
+      if (d > new Date()) {
+        // and we are in the future, get out!
+        break;
+      }
       cell_data.wc_date = d;
       cell_data.wc_delta = 0;
       cell_data.wc_hours = 0;
@@ -362,12 +426,20 @@ var lGraph = new lineGraph();
 
 
 function writeInfo(cell_data) {
+  if (cell_data == undefined) {
+    cell_data = {};
+    cell_data.wc_date = "";
+    cell_data.wc_hours = "";
+    cell_data.wc_delta = "";
+    cell_data.wc_count = "";
+    cell_data.wc_book = "";
+  }
   var info_area = document.getElementById("selection_info");
   var output = '<div class="col s12"></div>';
-  output += '<div class="chip">Date : '+ cell_data.wc_date.toDateString().substring(4,10) +'</div>';
-  output += '<div class="chip" style="background-color: '+ data_colors.wc_count +'">Word Count : '+ cell_data.wc_count.toString() +'</div>';
-  output += '<div class="chip" style="background-color: '+ data_colors.wc_delta +'">Words Added : '+ cell_data.wc_delta.toString() +'</div>';
+  output += '<div class="chip">Date : '+ (cell_data.wc_date == "") ? "" : cell_data.wc_date.toDateString().substring(4,10) +'</div>';
   output += '<div class="chip" style="background-color: '+ data_colors.wc_hours +'">Hours : '+ cell_data.wc_hours.toString() +'</div>';
+  output += '<div class="chip" style="color: white; background-color: '+ data_colors.wc_delta +'">Words Added : '+ cell_data.wc_delta.toString() +'</div>';
+  output += '<div class="chip" style="background-color: '+ data_colors.wc_count +'">Word Count : '+ cell_data.wc_count.toString() +'</div>';
   output += '<div class="chip">Book : '+ ((cell_data.wc_book != undefined) ? cell_data.wc_book : '') +'</div>';
   info_area.innerHTML = output;
 }
@@ -380,13 +452,16 @@ function main() {
     if (xmlhttp.readyState == 4 && xmlhttp.status == 200) {
       var data = processData(JSON.parse(xmlhttp.responseText));
       gGraph.init(data, 'wc_date', 'wc_delta');
-      gGraph.select_callout = function (cell_data) {
+      lGraph.init(data, 'wc_date', ['wc_hours', 'wc_delta', 'wc_count']);
+
+      var all_callout = function(cell_data) {
         // set the text panel
         writeInfo(cell_data);
         // set the selection on the line graph
+        lGraph.select_callin(cell_data);
       };
-      lGraph.init(data, 'wc_date', ['wc_delta', 'wc_count', 'wc_hours']);
-
+      gGraph.select_callout = all_callout;
+      lGraph.select_callout = all_callout;
       var today = new Date();
       for (var i=data.data.length - 1; i >= 0; i--) {
         if (today.toDateString() == data.data[i].wc_date.toDateString()) {

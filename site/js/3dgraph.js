@@ -1,8 +1,8 @@
 
 var data_colors = {
   wc_hours: "#F29F05",
-  wc_delta: "#0E3D59",
-  wc_count: "#88A61B",
+  wc_delta: "#88A61B",
+  wc_count: "#0E3D59",
 };
 
 var lineGraph = function() {
@@ -22,7 +22,9 @@ lineGraph.prototype.init = function (json_data, date_value, y_values) {
       z = d3.scaleOrdinal(d3.schemeCategory10);
 
   var max_date = json_data.data_max[date_value];
-  var min_date = json_data.data_min[date_value];
+  //var min_date = json_data.data_min[date_value];
+  var min_date = new Date(max_date);
+  min_date.setMonth(min_date.getMonth() - 4);
 
   x.domain([min_date, max_date]);
 
@@ -138,7 +140,7 @@ gitGraph.prototype.init = function (json_data, time_value, data_value) {
   // Boxes
   var box_pad = 0.7;
   var box_size = Math.floor((width - margins - margins) / 52);
-  var box_highest = box_size * 3.6;
+  var box_highest = box_size * 3;
   var low_hue = 0.18;
   var high_hue = 0.33;
   var neg_low_hue = 0.06;
@@ -159,7 +161,7 @@ gitGraph.prototype.init = function (json_data, time_value, data_value) {
       mat.color = seen.Colors.rgb(240, 240, 256, 180);
     }
     var box = seen.Shapes.unitcube()
-        .scale(box_size * box_pad, box_size * box_pad, (box_highest * (data[i][data_value] / data_max)))
+        .scale(box_size * box_pad, box_size * box_pad, (data[i][data_value] < data_max) ? (box_highest * (data[i][data_value] / data_max)) : box_highest)
         .translate(Math.floor(i/7) * (box_size), (i%7) * (-box_size), 0)
         .fill(mat);
     box.base_color = mat;
@@ -333,7 +335,7 @@ function slide(percent, low, high) {
 function processData(json_data) {
   var data = []; 
 
-  var data_max = {wc_delta:300, wc_hours:1, wc_count:500}; // default max
+  var data_max = {wc_delta:500, wc_hours:5, wc_count:1000}; // default max
   var data_min = {wc_delta:0, wc_hours:0, wc_count:0}; // default min
 
   var previous_count = 0;
@@ -426,19 +428,14 @@ var lGraph = new lineGraph();
 
 function writeInfo(cell_data) {
   if (cell_data == undefined) {
-    cell_data = {};
-    cell_data.wc_date = "";
-    cell_data.wc_hours = "";
-    cell_data.wc_delta = "";
-    cell_data.wc_count = "";
-    cell_data.wc_book = "";
+    return;
   }
   var info_area = document.getElementById("selection_info");
   var output = '<div class="col s12"></div>';
-  output += '<div class="chip">Date : '+ (cell_data.wc_date == "") ? "" : cell_data.wc_date.toDateString().substring(4,10) +'</div>';
+  output += '<div class="chip">Date : '+ cell_data.wc_date.toDateString().substring(4,10) +'</div>';
   output += '<div class="chip" style="background-color: '+ data_colors.wc_hours +'">Hours : '+ cell_data.wc_hours.toString() +'</div>';
-  output += '<div class="chip" style="color: white; background-color: '+ data_colors.wc_delta +'">Words Added : '+ cell_data.wc_delta.toString() +'</div>';
-  output += '<div class="chip" style="background-color: '+ data_colors.wc_count +'">Word Count : '+ cell_data.wc_count.toString() +'</div>';
+  output += '<div class="chip" style="background-color: '+ data_colors.wc_delta +'">Words Added : '+ cell_data.wc_delta.toString() +'</div>';
+  output += '<div class="chip" style="color: white; background-color: '+ data_colors.wc_count +'">Word Count : '+ cell_data.wc_count.toString() +'</div>';
   output += '<div class="chip">Book : '+ ((cell_data.wc_book != undefined) ? cell_data.wc_book : '') +'</div>';
   info_area.innerHTML = output;
 }

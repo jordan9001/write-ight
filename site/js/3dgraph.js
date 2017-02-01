@@ -22,7 +22,9 @@ lineGraph.prototype.init = function (json_data, date_value, y_values) {
       z = d3.scaleOrdinal(d3.schemeCategory10);
 
   var max_date = json_data.data_max[date_value];
+  // this would be a years worth
   //var min_date = json_data.data_min[date_value];
+  // we will just stick to 4 months
   var min_date = new Date(max_date);
   min_date.setMonth(min_date.getMonth() - 4);
 
@@ -38,19 +40,33 @@ lineGraph.prototype.init = function (json_data, date_value, y_values) {
 
   for (var val=0; val<y_values.length; val++) {
     var y = d3.scaleLinear().range([height, 0]);
-    y.domain([json_data.data_min[y_values[val]], json_data.data_max[y_values[val]]]);
+    y.domain([json_data.data_min[y_values[val].val], json_data.data_max[y_values[val].val]]);
     ys.push(y);
 
-    var line = d3.line()
-        .curve(d3.curveBasis)
-        .x(function(d) { return x(d[date_value]); })
-        .y(function(d) { return y(d[y_values[val]]); });
+    // handle splitting
+    var datum = [];
+    if (y_values[val].splitable) {
+      for (var chunk=0; chunk<json_data.split_points.length - 1; chunk++) {
+        datum.push(json_data.data.slice(json_data.split_points[chunk], json_data.split_points[chunk + 1]));
+      }
+    } else {
+      datum.push(json_data.data);
+    }
+    console.log(y_values[val]);
+      console.log(datum);
 
-    svg.append("path")
-        .datum(json_data.data)
-        .attr("class", "line")
-        .attr("d", function(d) { return line(json_data.data); })
-        .style("stroke", function(d) { return data_colors[y_values[val]]; });
+    for (var chunk=0; chunk<datum.length; chunk++) {
+      var line = d3.line()
+          .curve(d3.curveBasis)
+          .x(function(d) { return x(d[date_value]); })
+          .y(function(d) { return y(d[y_values[val].val]); });
+
+      svg.append("path")
+          .datum(datum[chunk])
+          .attr("class", "line")
+          .attr("d", function(d) { return line(datum[chunk]); })
+          .style("stroke", function(d) { return data_colors[y_values[val].val]; });
+    }
   
     // Mouseover stuff
     var tfocus = svg.append("g")
@@ -60,7 +76,7 @@ lineGraph.prototype.init = function (json_data, date_value, y_values) {
     tfocus.append("circle")
       .attr("r", 4.5)
       .style("fill", "none")
-      .style("stroke", function(d) { return data_colors[y_values[val]] });
+      .style("stroke", function(d) { return data_colors[y_values[val].val] });
   
     focus.push(tfocus);
   }
@@ -91,7 +107,7 @@ lineGraph.prototype.init = function (json_data, date_value, y_values) {
     }
     for (var i=0; i<focus.length; i++) {
       focus[i].style("display", null);
-      focus[i].attr("transform", "translate(" + x(d[date_value]) + "," + ys[i](d[y_values[i]]) + ")");
+      focus[i].attr("transform", "translate(" + x(d[date_value]) + "," + ys[i](d[y_values[i].val]) + ")");
     }
     // refresh d3
   }
@@ -338,6 +354,7 @@ function processData(json_data) {
   var data_max = {wc_delta:500, wc_hours:5, wc_count:1000}; // default max
   var data_min = {wc_delta:0, wc_hours:0, wc_count:0}; // default min
 
+  var split_points = [0];
   var previous_count = 0;
   var previous_book = "";
   for (var i=0; i<364; i++) {
@@ -358,7 +375,12 @@ function processData(json_data) {
         // add it to the collection and remove it from our json_data
         cell_data = json_data.splice(j,1)[0];
         cell_data.wc_date = d;
-        cell_data.wc_delta = cell_data.wc_count - previous_count;
+        if (previous_book == cell_data.wc_book) {
+          cell_data.wc_delta = cell_data.wc_count - previous_count;
+        } else {
+          cell_data.wc_delta = cell_data.wc_count;
+          split_points.push(data.length);
+        }
         cell_data.generated = false;
         previous_count = cell_data.wc_count;
         previous_book = cell_data.wc_book;
@@ -386,19 +408,22 @@ function processData(json_data) {
     }
     data.push(cell_data);
   }
+  split_points.push(data.length);
 
 
   // Find max and min, without outliers
   var min_max = [];
   min_max = stat_minmax(data.filter(function (x) {return x.generated == false}).map(function (x) {return x.wc_delta}));
   data_max.wc_delta = (data_max.wc_delta > min_max[1]) ? data_max.wc_delta : min_max[1];
-  data_min.wc_delta = (data_min.wc_delta < min_max[0]) ? data_min.wc_delta : min_max[0];
+  // commented to lock low at zero
+  //data_min.wc_delta = (data_min.wc_delta < min_max[0]) ? data_min.wc_delta : min_max[0];
   
   min_max = stat_minmax(data.filter(function (x) {return x.generated == false}).map(function (x) {return x.wc_hours}));
   data_max.wc_hours = (data_max.wc_hours > min_max[1]) ? data_max.wc_hours : min_max[1];
-  data_min.wc_hours = (data_min.wc_hours < min_max[0]) ? data_min.wc_hours : min_max[0];
+  // commented to lock low at zero
+  //data_min.wc_hours = (data_min.wc_hours < min_max[0]) ? data_min.wc_hours : min_max[0];
 
-  return {data: data, data_max: data_max, data_min: data_min};
+  return {data: data, data_max: data_max, data_min: data_min, split_points: split_points};
 }
 
 function stat_minmax(in_arr) {
@@ -448,7 +473,7 @@ function main() {
     if (xmlhttp.readyState == 4 && xmlhttp.status == 200) {
       var data = processData(JSON.parse(xmlhttp.responseText));
       gGraph.init(data, 'wc_date', 'wc_delta');
-      lGraph.init(data, 'wc_date', ['wc_hours', 'wc_delta', 'wc_count']);
+      lGraph.init(data, 'wc_date', [{val: 'wc_hours', splitable: false}, {val: 'wc_count', splitable: true}]);
 
       var all_callout = function(cell_data) {
         // set the text panel

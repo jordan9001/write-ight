@@ -27,17 +27,19 @@ lineGraph.prototype.init = function (json_data, date_value, y_values) {
   // we will just stick to 4 months
   var min_date = new Date(max_date);
   min_date.setMonth(min_date.getMonth() - 4);
-
+  // choose our domain
   x.domain([min_date, max_date]);
 
   var focus = [];
   var ys = [];
 
+  // make the axis
   g.append("g")
       .attr("class", "axis axis--x")
       .attr("transform", "translate(0," + height + ")")
       .call(d3.axisBottom(x));
 
+  // for each line
   for (var val=0; val<y_values.length; val++) {
     var y = d3.scaleLinear().range([height, 0]);
     y.domain([json_data.data_min[y_values[val].val], json_data.data_max[y_values[val].val]]);
@@ -50,17 +52,18 @@ lineGraph.prototype.init = function (json_data, date_value, y_values) {
         datum.push(json_data.data.slice(json_data.split_points[chunk], json_data.split_points[chunk + 1]));
       }
     } else {
+      // just put one chunk in
       datum.push(json_data.data);
     }
-    console.log(y_values[val]);
-      console.log(datum);
 
     for (var chunk=0; chunk<datum.length; chunk++) {
+      // Make the line
       var line = d3.line()
-          .curve(d3.curveBasis)
+          .curve(d3.curveMonotoneX) // Monotone is good because it keeps the points on the line
           .x(function(d) { return x(d[date_value]); })
           .y(function(d) { return y(d[y_values[val].val]); });
 
+      // plot the line
       svg.append("path")
           .datum(datum[chunk])
           .attr("class", "line")

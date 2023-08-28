@@ -1,8 +1,6 @@
 # write-ight
 A GitHub contributions style graph, in 3D, for recording writing metrics
 
-*[See it in action](http://wc.meredithgrayce.com/)*
-
 This uses the awesome seen.js library to graph writing frequency and progress.
 
 This set up requires:
